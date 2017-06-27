@@ -17,21 +17,20 @@
 
 package org.apache.ignite.cache.affinity.rendezvous;
 
-import java.io.Externalizable;
 import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.cache.affinity.AffinityFunction;
 import org.apache.ignite.cache.affinity.AffinityFunctionContext;
@@ -69,7 +68,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>
  * Cache affinity can be configured for individual caches via {@link CacheConfiguration#getAffinity()} method.
  */
-public class RendezvousAffinityFunction implements AffinityFunction, Externalizable {
+public class RendezvousAffinityFunction implements AffinityFunction, Serializable {
     /** */
     private static final long serialVersionUID = 0L;
 
@@ -83,7 +82,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Externaliza
     private int parts;
 
     /** Mask to use in calculation when partitions count is power of 2. */
-    private transient int mask = -1;
+    private int mask = -1;
 
     /** Exclude neighbors flag. */
     private boolean exclNeighbors;
@@ -229,8 +228,8 @@ public class RendezvousAffinityFunction implements AffinityFunction, Externaliza
      * Note that {@code backupFilter} is ignored if {@code excludeNeighbors} is set to {@code true}.
      *
      * @param backupFilter Optional backup filter.
-     * @deprecated Use {@code affinityBackupFilter} instead.
      * @return {@code this} for chaining.
+     * @deprecated Use {@code affinityBackupFilter} instead.
      */
     @Deprecated
     public RendezvousAffinityFunction setBackupFilter(
@@ -321,8 +320,8 @@ public class RendezvousAffinityFunction implements AffinityFunction, Externaliza
         if (nodes.size() <= 1)
             return nodes;
 
-        IgniteBiTuple<Long, ClusterNode> [] hashArr =
-            (IgniteBiTuple<Long, ClusterNode> [])new IgniteBiTuple[nodes.size()];
+        IgniteBiTuple<Long, ClusterNode>[] hashArr =
+            (IgniteBiTuple<Long, ClusterNode>[])new IgniteBiTuple[nodes.size()];
 
         for (int i = 0; i < nodes.size(); i++) {
             ClusterNode node = nodes.get(i);
@@ -369,7 +368,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Externaliza
                 }
                 else if ((backupFilter != null && backupFilter.apply(primary, node))
                     || (affinityBackupFilter != null && affinityBackupFilter.apply(node, res))
-                    || (affinityBackupFilter == null && backupFilter == null) ) {
+                    || (affinityBackupFilter == null && backupFilter == null)) {
                     res.add(node);
 
                     if (exclNeighbors)
@@ -493,28 +492,111 @@ public class RendezvousAffinityFunction implements AffinityFunction, Externaliza
             assignments.add(partAssignment);
         }
 
+	    List<List<Integer>> dist = freqDistribution(assignments, nodes);
+	    printDistribution(dist);
+
         return assignments;
+    }
+
+    /**
+     * The table with count of partitions on node:
+     *
+     * column 0 - primary partitions counts
+     * column 1 - backup#0 partitions counts
+     * etc
+     *
+     * Rows correspond to the nodes.
+     *
+     * @param lst Affinity result.
+     * @param nodes Topology.
+     * @return Frequency distribution: counts of partitions on node.
+     */
+	private static List<List<Integer>> freqDistribution(List<List<ClusterNode>> lst, Collection<ClusterNode> nodes) {
+		List<Map<ClusterNode, AtomicInteger>> nodeMaps = new ArrayList<>();
+
+		int backups = lst.get(0).size();
+
+		for (int i = 0; i < backups; ++i) {
+			Map<ClusterNode, AtomicInteger> map = new HashMap<>();
+
+			for (List<ClusterNode> l : lst) {
+				ClusterNode node = l.get(i);
+
+				if (!map.containsKey(node))
+					map.put(node, new AtomicInteger(1));
+				else
+					map.get(node).incrementAndGet();
+			}
+			/*
+
+                chiSquare(dist0, aff0.partitions(), 1.0 / nodesCnt),
+
+			 */
+
+			nodeMaps.add(map);
+		}
+
+		List<List<Integer>> byNodes = new ArrayList<>(nodes.size());
+		for (ClusterNode node : nodes) {
+			List<Integer> byBackups = new ArrayList<>(backups);
+
+			for (int j = 0; j < backups; ++j) {
+				if (nodeMaps.get(j).get(node) == null)
+					byBackups.add(0);
+				else
+					byBackups.add(nodeMaps.get(j).get(node).get());
+			}
+
+			byNodes.add(byBackups);
+		}
+		return byNodes;
+	}
+
+	private double chiSquare(List<List<Integer>> byNodes, int parts, double goldenNodeWeight) {
+		double sum = 0;
+
+		for (List<Integer> byNode : byNodes) {
+			double w = (double)byNode.get(0) / parts;
+
+			sum += (goldenNodeWeight - w) * (goldenNodeWeight - w) / goldenNodeWeight;
+		}
+		return sum;
+	}
+
+    /**
+     * @param byNodes Frequency distribution.
+     * @throws IOException On error.
+     */
+    private void printDistribution(Collection<List<Integer>> byNodes) {
+        int nodes = byNodes.size();
+        int nr = 0;
+        int node = 0;
+
+        System.out.println("#### NODES:" + nodes + " nodes\n");
+
+        for (List<Integer> byNode : byNodes) {
+
+            System.out.println("## Node " + node++ + ":");
+
+            nr = 0;
+
+            for (int w : byNode) {
+                int percentage = (int)Math.round((double)w / 1 /*this.getPartitions()*/ * 100);
+
+                System.out.print((nr == 0 ? "Primary" : "Backup" + nr) + " node: " +
+                    "partitions count=" + w + " percentage of parts count=" + percentage + "% ");
+
+                nr++;
+            }
+
+            System.out.println("");
+        }
+
     }
 
     /** {@inheritDoc} */
     @Override public void removeNode(UUID nodeId) {
         // No-op.
-    }
-
-    /** {@inheritDoc} */
-    @Override public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeInt(parts);
-        out.writeBoolean(exclNeighbors);
-        out.writeObject(backupFilter);
-    }
-
-    /** {@inheritDoc} */
-    @SuppressWarnings("unchecked")
-    @Override public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        setPartitions(in.readInt());
-
-        exclNeighbors = in.readBoolean();
-        backupFilter = (IgniteBiPredicate<ClusterNode, ClusterNode>)in.readObject();
     }
 
     /**
