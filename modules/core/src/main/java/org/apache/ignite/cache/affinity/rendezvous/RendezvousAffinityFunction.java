@@ -169,6 +169,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
         setPartitions(parts);
 
         this.backupFilter = backupFilter;
+
     }
 
     /**
@@ -581,7 +582,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
             nr = 0;
 
             for (int w : byNode) {
-                int percentage = (int)Math.round((double)w / 1 /*this.getPartitions()*/ * 100);
+                int percentage = (int)Math.round((double)w / this.getPartitions() * 100);
 
                 System.out.print((nr == 0 ? "Primary" : "Backup" + nr) + " node: " +
                     "partitions count=" + w + " percentage of parts count=" + percentage + "% ");
