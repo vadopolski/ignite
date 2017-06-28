@@ -82,7 +82,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
     private int parts;
 
     /** Mask to use in calculation when partitions count is power of 2. */
-    private int mask = -1;
+    private transient int mask = -1;
 
     /** Exclude neighbors flag. */
     private boolean exclNeighbors;
@@ -169,7 +169,6 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
         setPartitions(parts);
 
         this.backupFilter = backupFilter;
-
     }
 
     /**
@@ -229,8 +228,8 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
      * Note that {@code backupFilter} is ignored if {@code excludeNeighbors} is set to {@code true}.
      *
      * @param backupFilter Optional backup filter.
-     * @return {@code this} for chaining.
      * @deprecated Use {@code affinityBackupFilter} instead.
+     * @return {@code this} for chaining.
      */
     @Deprecated
     public RendezvousAffinityFunction setBackupFilter(
@@ -321,8 +320,8 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
         if (nodes.size() <= 1)
             return nodes;
 
-        IgniteBiTuple<Long, ClusterNode>[] hashArr =
-            (IgniteBiTuple<Long, ClusterNode>[])new IgniteBiTuple[nodes.size()];
+        IgniteBiTuple<Long, ClusterNode> [] hashArr =
+            (IgniteBiTuple<Long, ClusterNode> [])new IgniteBiTuple[nodes.size()];
 
         for (int i = 0; i < nodes.size(); i++) {
             ClusterNode node = nodes.get(i);
@@ -369,7 +368,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
                 }
                 else if ((backupFilter != null && backupFilter.apply(primary, node))
                     || (affinityBackupFilter != null && affinityBackupFilter.apply(node, res))
-                    || (affinityBackupFilter == null && backupFilter == null)) {
+                    || (affinityBackupFilter == null && backupFilter == null) ) {
                     res.add(node);
 
                     if (exclNeighbors)
