@@ -169,6 +169,8 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
         setPartitions(parts);
 
         this.backupFilter = backupFilter;
+
+
     }
 
     /**
