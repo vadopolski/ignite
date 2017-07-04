@@ -591,7 +591,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
                 nr++;
             }
 
-            log.info("");
+            log.info(" ");
         }
 
     }
