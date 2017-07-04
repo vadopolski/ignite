@@ -530,11 +530,6 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
 				else
 					map.get(node).incrementAndGet();
 			}
-			/*
-
-                chiSquare(dist0, aff0.partitions(), 1.0 / nodesCnt),
-
-			 */
 
 			nodeMaps.add(map);
 		}
@@ -553,17 +548,6 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
 			byNodes.add(byBackups);
 		}
 		return byNodes;
-	}
-
-	private double chiSquare(List<List<Integer>> byNodes, int parts, double goldenNodeWeight) {
-		double sum = 0;
-
-		for (List<Integer> byNode : byNodes) {
-			double w = (double)byNode.get(0) / parts;
-
-			sum += (goldenNodeWeight - w) * (goldenNodeWeight - w) / goldenNodeWeight;
-		}
-		return sum;
 	}
 
     /**
