@@ -360,8 +360,8 @@ public class RendezvousAffinityFunctionSimpleBenchmark extends GridCommonAbstrac
             List<ClusterNode> nodes0 = createBaseNodes(nodesCnt1);
 
             assignPartitions(aff3, nodes0, null, 2, 0).get2();
-            List<List<ClusterNode>> lst0 = assignPartitions(aff3, nodes0, null, 2, 1).get2();
 
+            List<List<ClusterNode>> lst0 = assignPartitions(aff3, nodes0, null, 2, 1).get2();
             List<List<Integer>> dist0 = freqDistribution(lst0, nodes0);
         }
     }
