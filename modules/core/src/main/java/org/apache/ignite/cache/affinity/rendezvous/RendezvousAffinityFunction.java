@@ -171,7 +171,7 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
 
         this.backupFilter = backupFilter;
 
-
+        log = new Log4JLogger().getLogger(RendezvousAffinityFunction.class);
     }
 
     /**
@@ -575,26 +575,23 @@ public class RendezvousAffinityFunction implements AffinityFunction, Serializabl
         int nr = 0;
         int node = 0;
 
-        IgniteLogger log = new Log4JLogger().getLogger(RendezvousAffinityFunction.class);
-
-        System.out.println("#### NODES:" + nodes + " nodes\n");
+        log.info("#### NODES:" + nodes + " nodes\n");
 
         for (List<Integer> byNode : byNodes) {
-
-            System.out.println("## Node " + node++ + ":");
+            log.info("## Node " + node++ + ":");
 
             nr = 0;
 
             for (int w : byNode) {
                 int percentage = (int)Math.round((double)w / this.getPartitions() * 100);
 
-                System.out.print((nr == 0 ? "Primary" : "Backup" + nr) + " node: " +
+                log.info((nr == 0 ? "Primary" : "Backup" + nr) + " node: " +
                     "partitions count=" + w + " percentage of parts count=" + percentage + "% ");
 
                 nr++;
             }
 
-            System.out.println("");
+            log.info("");
         }
 
     }
