@@ -17,6 +17,7 @@
 
 package org.apache.ignite.internal.util;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.internal.util.typedef.F;
@@ -194,10 +195,10 @@ public class GridLogThrottle {
             e != null && !byMsg ? F.<Class<? extends Throwable>, String>t(e.getClass(), e.getMessage()) :
                 F.<Class<? extends Throwable>, String>t(null, longMsg);
 
+        long curTs = U.currentTimeMillis();
+
         while (true) {
             Long loggedTs = errors.get(tup);
-
-            long curTs = U.currentTimeMillis();
 
             if (loggedTs == null || loggedTs < curTs - throttleTimeout) {
                 if (replace(tup, loggedTs, curTs)) {
@@ -210,6 +211,8 @@ public class GridLogThrottle {
                 // Ignore.
                 break;
         }
+
+        cleanUpOldEntries(curTs);
     }
 
     /**
@@ -229,6 +232,20 @@ public class GridLogThrottle {
         }
 
         return errors.replace(t, oldStamp, newStamp);
+    }
+
+    /**
+     * Method iterates though man and removes outdated entries (compares entry timestamp with current
+     * timestamp minus timeout). It protects the map from causing memory leak.
+     *
+     * @param currentStamp Current TimeStamp
+     */
+    private static void cleanUpOldEntries(Long currentStamp) {
+        for (Map.Entry<IgniteBiTuple<Class<? extends Throwable>, String>, Long> entry : errors.entrySet()) {
+            if (entry.getValue() < currentStamp - throttleTimeout) {
+                errors.remove(entry.getKey());
+            }
+        }
     }
 
     /** Ensure singleton. */
