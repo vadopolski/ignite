@@ -414,11 +414,6 @@ public final class IgniteSystemProperties {
     public static final String IGNITE_CACHE_CLIENT = "IGNITE_CACHE_CLIENT";
 
     /**
-     * Property controlling distribution calculation.
-     */
-    public static final String IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD = "IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD";
-
-    /**
      * Property controlling whether CacheManager will start grid with isolated IP finder when default URL
      * is passed in. This is needed to pass TCK tests which use default URL and assume isolated cache managers
      * for different class loaders.
@@ -641,6 +636,15 @@ public final class IgniteSystemProperties {
      */
     public static final String IGNITE_CLIENT_CACHE_CHANGE_MESSAGE_TIMEOUT =
         "IGNITE_CLIENT_CACHE_CHANGE_MESSAGE_TIMEOUT";
+
+    /**
+     * Property controlling printing warning message and statistic only when nodes count differs more then threshold.
+     * The problem message. If calculated statistic is more than IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD
+     * there is problem message "Partition map has been built (distribution is not even for caches) ... " else
+     * "Partition map has been built (distribution is even)."
+     * Printing enabled by default.
+     */
+    public static final String IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD = "IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD";
 
     /**
      * Enforces singleton.

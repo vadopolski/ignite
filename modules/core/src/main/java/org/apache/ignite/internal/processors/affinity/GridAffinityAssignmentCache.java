@@ -318,9 +318,12 @@ public class GridAffinityAssignmentCache {
     private void printDistribution(List<List<ClusterNode>> partitionsByNodes,
         Collection<ClusterNode> nodes, String cacheName, String localNodeID) {
 
-        int[] nodesParts = freqDistribution(partitionsByNodes, nodes);
-
         String ignitePartDistribution = System.getProperty(IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD);
+
+        if (ignitePartDistribution == null || ignitePartDistribution == "")
+            ignitePartDistribution = "0";
+
+        int[] nodesParts = freqDistribution(partitionsByNodes, nodes);
 
         if (nodesParts.length != 0) {
 
@@ -357,7 +360,7 @@ public class GridAffinityAssignmentCache {
      * Rows correspond to the nodes.
      *
      * @param partitionsByNodes Affinity result.
-     * @param nodes Topology.
+     * @param nodes All nodes for current topology.
      * @return Frequency distribution array with counts of partitions on node.
      */
     private int[] freqDistribution(List<List<ClusterNode>> partitionsByNodes,
@@ -373,8 +376,9 @@ public class GridAffinityAssignmentCache {
                 ClusterNode node = partitionByNodes.get(i);
 
                 if (node.isLocal()) {
-                    if (!nodeMap.containsKey(node))
+                    if (!nodeMap.containsKey(node)) {
                         nodeMap.put(node, new AtomicInteger(1));
+                    }
                     else
                         nodeMap.get(node).incrementAndGet();
                 }
