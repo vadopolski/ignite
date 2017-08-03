@@ -131,7 +131,7 @@ public class RendezvousAffinityFunctionCalculateDistributionSelfTest extends Gri
      * @throws Exception If failed.
      */
     public void testDistributionCalculationProblemMessage() throws Exception {
-        System.setProperty(IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, String.valueOf(10));
+        System.setProperty(IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, String.valueOf(1));
 
         Ignite ignite = startGrid(0);
 
@@ -164,7 +164,7 @@ public class RendezvousAffinityFunctionCalculateDistributionSelfTest extends Gri
      * @throws Exception If failed.
      */
     public void testDistributionCalculationOKMessage() throws Exception {
-        System.setProperty(IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, String.valueOf(55));
+        System.setProperty(IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, String.valueOf(75));
 
         Ignite ignite = startGrid(0);
 

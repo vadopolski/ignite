@@ -328,23 +328,19 @@ public class GridAffinityAssignmentCache {
 
             for (int i = 0; i < nodesParts.length; i++) {
 
-                int nr = 0;
-
                 if (nodesParts[i] != partitionsByNodes.size()) {
                     int percentage = (int)Math.round((double)nodesParts[i] / partitionsByNodes.size() * 100);
 
                     if (percentage >= Integer.valueOf(ignitePartDistribution) || ignitePartDistribution == null) {
                         log.info("Partition map has been built (distribution is not even for caches) [cacheName="
-                            + cacheName + ", " + (nr == 0 ? "Primary" : "Backup") + " nodeId=" + localNodeID +
-                            ", totalPartitionsCount=" + partitionsByNodes.size() + " percentageOfTotalPartsCount=" + percentage + "%"
+                            + cacheName + ", " + " nodeId=" + localNodeID +
+                            ", totalPartitionsCount=" + partitionsByNodes.size() + ", percentageOfTotalPartsCount=" + percentage + "%"
                             + ", parts=" + nodesParts[i] + "]");
                     }
                     else {
                         log.info("Partition map has been built (distribution is even)");
                     }
                 }
-
-                nr++;
             }
         }
     }
