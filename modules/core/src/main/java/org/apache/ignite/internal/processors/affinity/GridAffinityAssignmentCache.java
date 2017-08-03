@@ -298,8 +298,7 @@ public class GridAffinityAssignmentCache {
 
         assert assignment != null;
 
-        if (!cacheOrGrpName.equals("ignite-sys-cache"))
-            printDistribution(assignment, sorted, cacheOrGrpName, ctx.localNodeId().toString());
+        printDistribution(assignment, sorted, cacheOrGrpName, ctx.localNodeId().toString());
 
         idealAssignment = assignment;
 
