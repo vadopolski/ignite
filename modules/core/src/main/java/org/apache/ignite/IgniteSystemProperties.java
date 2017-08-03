@@ -638,6 +638,15 @@ public final class IgniteSystemProperties {
         "IGNITE_CLIENT_CACHE_CHANGE_MESSAGE_TIMEOUT";
 
     /**
+     * Property controlling printing warning message and statistic only when nodes count differs more then threshold.
+     * The problem message. If calculated statistic is more than IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD
+     * there is problem message "Partition map has been built (distribution is not even for caches) ... " else
+     * "Partition map has been built (distribution is even)."
+     * Printing enabled by default.
+     */
+    public static final String IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD = "IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD";
+
+    /**
      * Enforces singleton.
      */
     private IgniteSystemProperties() {
