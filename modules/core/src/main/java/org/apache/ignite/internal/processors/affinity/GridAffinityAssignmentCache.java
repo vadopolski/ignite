@@ -300,7 +300,7 @@ public class GridAffinityAssignmentCache {
         assert assignment != null;
 
         if (ctx.cache().cacheMode(cacheOrGrpName) == PARTITIONED)
-            printDistribution(assignment);
+            printDistribution(assignment, sorted.size());
 
         idealAssignment = assignment;
 
@@ -312,55 +312,43 @@ public class GridAffinityAssignmentCache {
 
     /**
      * @param assignment List indexed by partition number.
+     * @param dataNodesCnt Data nodes count.
      */
-    private void printDistribution(List<List<ClusterNode>> assignment) {
+    private void printDistribution(List<List<ClusterNode>> assignment, int dataNodesCnt) {
         Float ignitePartDistribution = getFloat(IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, 0.1f);
 
-        int nodesCnt = assignment.get(0).size();
+        int localPrimaryCnt = 0;
+        int localBackupCnt = 0;
 
-        if (nodesCnt != 0) {
-            int[] partitionsByLocalNode = new int[nodesCnt];
+        for (List<ClusterNode> partitionAssign : assignment) {
+            if (partitionAssign != null) {
+                for (int i = 0; i < partitionAssign.size(); i++) {
+                    ClusterNode n = partitionAssign.get(i);
 
-            int totalPrimaryCnt = 0;
-
-            int totalBackupCnt = 0;
-
-            for (List<ClusterNode> partitionByNodes : assignment) {
-                if (partitionByNodes != null) {
-                    for (int i = 0; i < nodesCnt; i++) {
-                        if (partitionByNodes.get(i) != null && partitionByNodes.get(i).isLocal())
-                            partitionsByLocalNode[i] += 1;
-
+                    if (n != null && n.isLocal()) {
                         if (i == 0)
-                            totalPrimaryCnt++;
+                            localPrimaryCnt = 0;
                         else
-                            totalBackupCnt++;
+                            localBackupCnt = 0;
                     }
                 }
             }
+        }
 
-            int localPrimaryCnt = partitionsByLocalNode[0];
-            int localBackupCnt = 0;
-            float localBackupPercent = 0;
+        float expectedCnt = (float)assignment.size() / dataNodesCnt;
+        float expectedPercent = expectedCnt / partsCnt * 100;
 
-            for (int i = 1; i < partitionsByLocalNode.length; i++) {
-                localBackupCnt += partitionsByLocalNode[i];
-                localBackupPercent += (float)partitionsByLocalNode[i] / assignment.size() * 100;
-            }
+        float deltaPrimary = Math.abs((expectedCnt - localPrimaryCnt) / partsCnt);
+        float deltaBackup = Math.abs((expectedCnt * backups - localBackupCnt) / partsCnt);
 
-            float expectedCnt = (float)assignment.size() / nodesCnt;
-            float expectedPercent = expectedCnt / assignment.size() * 100;
-            float primaryPerNodePercent = (float)localPrimaryCnt / assignment.size() * 100;
-
-            float deltaPrimary = Math.abs(1 - (float)localPrimaryCnt * nodesCnt / totalPrimaryCnt);
-            float deltaBackup = Math.abs(1 - (float)localBackupCnt * nodesCnt / totalBackupCnt);
-
-            if (deltaPrimary > ignitePartDistribution || deltaBackup > ignitePartDistribution) {
-                log.info(String.format("Local node affinity assignment distribution is not ideal " +
-                        "[cache=%s, expectedPrimary=%.2f(%.2f%%), expectedBackups=%.2f(%.2f%%), " +
-                        "primary=%d(%.2f%%), backups=%d(%.2f%%)]", cacheOrGrpName, expectedCnt, expectedPercent, expectedCnt * this.backups,
-                    expectedPercent * this.backups, localPrimaryCnt, primaryPerNodePercent, localBackupCnt, localBackupPercent));
-            }
+        if (deltaPrimary > ignitePartDistribution || deltaBackup > ignitePartDistribution) {
+            log.info(String.format("Local node affinity assignment distribution is not ideal " +
+                    "[cache=%s, expectedPrimary=%.2f(%.2f%%), expectedBackups=%.2f(%.2f%%), " +
+                    "primary=%d(%.2f%%), backups=%d(%.2f%%)]", cacheOrGrpName,
+                expectedCnt, expectedPercent,
+                expectedCnt * backups, expectedPercent * backups,
+                localPrimaryCnt, (float) localPrimaryCnt / partsCnt * 100,
+                localBackupCnt, (float) localBackupCnt / partsCnt * 100));
         }
     }
 
