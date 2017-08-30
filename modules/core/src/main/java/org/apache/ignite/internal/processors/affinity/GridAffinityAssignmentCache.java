@@ -327,9 +327,9 @@ public class GridAffinityAssignmentCache {
 
                     if (n != null && n.isLocal()) {
                         if (i == 0)
-                            localPrimaryCnt = 0;
+                            localPrimaryCnt++;
                         else
-                            localBackupCnt = 0;
+                            localBackupCnt++;
                     }
                 }
             }
