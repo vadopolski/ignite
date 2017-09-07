@@ -48,10 +48,12 @@ import org.apache.ignite.internal.util.typedef.internal.S;
 import org.apache.ignite.internal.util.typedef.internal.U;
 import org.apache.ignite.lang.IgnitePredicate;
 import org.jetbrains.annotations.Nullable;
-import org.jsr166.ConcurrentHashMap8;
 
 import static org.apache.ignite.IgniteSystemProperties.IGNITE_AFFINITY_HISTORY_SIZE;
+import static org.apache.ignite.IgniteSystemProperties.IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD;
+import static org.apache.ignite.IgniteSystemProperties.getFloat;
 import static org.apache.ignite.IgniteSystemProperties.getInteger;
+import static org.apache.ignite.cache.CacheMode.PARTITIONED;
 import static org.apache.ignite.internal.events.DiscoveryCustomEvent.EVT_DISCOVERY_CUSTOM_EVT;
 
 /**
@@ -296,12 +298,66 @@ public class GridAffinityAssignmentCache {
 
         assert assignment != null;
 
+        if (ctx.cache().cacheConfiguration(cacheOrGrpName).getCacheMode() == PARTITIONED)
+            printDistribution(assignment);
+
         idealAssignment = assignment;
 
         if (locCache)
             initialize(topVer, assignment);
 
         return assignment;
+    }
+
+    /**
+     * @param assignment List indexed by partition number.
+     */
+    private void printDistribution(List<List<ClusterNode>> assignment) {
+        assert assignment != null;
+        assert assignment.get(0) != null;
+
+        int nodesCntByPartition = assignment.get(0).size();
+
+        int localPrimaryCnt = 0;
+        int localBackupCnt = 0;
+
+        for (List<ClusterNode> partitionByNodes : assignment) {
+            assert partitionByNodes != null;
+            assert nodesCntByPartition == partitionByNodes.size();
+            assert partitionByNodes.get(0) != null;
+
+            if (partitionByNodes.get(0).isLocal())
+                    localPrimaryCnt++;
+
+            for (int i = 1; i < nodesCntByPartition; i++) {
+                assert partitionByNodes.get(i) != null;
+
+                if (partitionByNodes.get(i).isLocal())
+                    localBackupCnt++;
+            }
+        }
+
+        int partitionsCnt = assignment.size();
+        int totalBackupCnt = partitionsCnt * (nodesCntByPartition - 1);
+
+        float expectedCnt = (float)partitionsCnt / nodesCntByPartition;
+        float expectedPercent = expectedCnt / partitionsCnt * 100;
+
+        float localBackupPercent = (float)localBackupCnt / partitionsCnt * 100;
+        float localPrimaryPercent = (float)localPrimaryCnt / partitionsCnt * 100;
+
+        float deltaPrimary = Math.abs(1 - (float)localPrimaryCnt * nodesCntByPartition / partitionsCnt);
+        float deltaBackup = Math.abs(1 - (float)localBackupCnt * nodesCntByPartition / totalBackupCnt);
+
+        float ignitePartDistribution = getFloat(IGNITE_PART_DISTRIBUTION_WARN_THRESHOLD, 0.1f);
+
+        if (deltaPrimary > ignitePartDistribution || deltaBackup > ignitePartDistribution) {
+            log.info(String.format("Local node affinity assignment distribution is not ideal " +
+                    "[cache=%s, expectedPrimary=%.2f(%.2f%%), expectedBackups=%.2f(%.2f%%), " +
+                    "primary=%d(%.2f%%), backups=%d(%.2f%%)]", cacheOrGrpName, expectedCnt, expectedPercent,
+                expectedCnt * this.backups, expectedPercent * this.backups, localPrimaryCnt, localPrimaryPercent,
+                localBackupCnt, localBackupPercent));
+        }
     }
 
     /**
