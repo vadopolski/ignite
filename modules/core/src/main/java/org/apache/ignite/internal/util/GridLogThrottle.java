@@ -17,7 +17,12 @@
 
 package org.apache.ignite.internal.util;
 
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.ignite.IgniteLogger;
 import org.apache.ignite.internal.util.typedef.F;
 import org.apache.ignite.internal.util.typedef.internal.U;
@@ -44,13 +49,38 @@ public class GridLogThrottle {
     private static final ConcurrentMap<IgniteBiTuple<Class<? extends Throwable>, String>, Long> errors =
         new ConcurrentHashMap8<>();
 
+    /** Scheduler. */
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+    /** Timer to manage map cleaning. */
+    private static ScheduledFuture cleanUpOldEntriesTask;
+
+    /**
+     * Setup period map cleaning task.
+     */
+    public static void mapCleaningPeriodSetup() {
+        synchronized (scheduler) {
+            if (cleanUpOldEntriesTask != null) {
+                cleanUpOldEntriesTask.cancel(false);
+            }
+
+            cleanUpOldEntriesTask = scheduler.scheduleAtFixedRate(new Runnable() {
+                @Override public void run() {
+                    cleanUpOldEntries();
+                }
+            }, throttleTimeout, throttleTimeout, TimeUnit.MILLISECONDS);
+        }
+    }
+
     /**
      * Sets system-wide log throttle timeout.
      *
-     * @param timeout System-wide log throttle timeout.
+     * @param timeout System-wide log throttle timeout and map cleaning task restart.
      */
     public static void throttleTimeout(int timeout) {
         throttleTimeout = timeout;
+
+        mapCleaningPeriodSetup();
     }
 
     /**
@@ -190,6 +220,9 @@ public class GridLogThrottle {
         @Nullable String shortMsg, LogLevel level, boolean quiet, boolean byMsg) {
         assert !F.isEmpty(longMsg);
 
+        if (cleanUpOldEntriesTask == null)
+            mapCleaningPeriodSetup();
+
         IgniteBiTuple<Class<? extends Throwable>, String> tup =
             e != null && !byMsg ? F.<Class<? extends Throwable>, String>t(e.getClass(), e.getMessage()) :
                 F.<Class<? extends Throwable>, String>t(null, longMsg);
@@ -229,6 +262,19 @@ public class GridLogThrottle {
         }
 
         return errors.replace(t, oldStamp, newStamp);
+    }
+
+    /**
+     * Method iterates though map and removes outdated entries (compares entry timestamp with current timestamp minus
+     * timeout). It protects the map from causing memory leak.
+     */
+    private static void cleanUpOldEntries() {
+        long curTs = U.currentTimeMillis();
+
+        for (Iterator<Long> it = errors.values().iterator(); it.hasNext(); ) {
+            if (it.next() <= (curTs - throttleTimeout))
+                it.remove();
+        }
     }
 
     /** Ensure singleton. */
@@ -281,5 +327,12 @@ public class GridLogThrottle {
          * @param e Exception to attach to log.
          */
         public abstract void doLog(IgniteLogger log, String longMsg, String shortMsg, Throwable e, boolean quiet);
+    }
+
+    /**
+     * @return Errors size.
+     */
+    public static int errorsSize() {
+        return errors.size();
     }
 }
